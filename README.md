@@ -10,7 +10,7 @@ To authenticate you need to supply our AccountName and the path to your private 
 
 Here's a minimal example of how to get all your DNS records using this `libdns` provider
 
-```
+```go
 package main
 
 import (
