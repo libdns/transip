@@ -2,8 +2,8 @@ package transip
 
 import (
 	"context"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/libdns/libdns"
 	transipdomain "github.com/transip/gotransip/v6/domain"
