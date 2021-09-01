@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/libdns/libdns"
-	transipdomain "github.com/transip/gotransip/domain"
+	transipdomain "github.com/transip/gotransip/v6/domain"
 )
 
 // Provider implements the libdns interfaces for Route53
