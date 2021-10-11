@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/transip/gotransip"
-	transipdomain "github.com/transip/gotransip/domain"
 	"github.com/libdns/libdns"
+	"github.com/transip/gotransip/v6"
+	transipdomain "github.com/transip/gotransip/v6/domain"
 )
 
 func (p *Provider) setupRepository() error {
