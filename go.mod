@@ -1,4 +1,4 @@
-module github.com/libdns/transip
+module github.com/zjean/lib-transip
 
 go 1.14
 
