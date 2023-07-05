@@ -25,7 +25,7 @@ type Provider struct {
 
 // GetRecords lists all the records in the zone.
 func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
-	records, err := p.getDNSEntries(ctx, unFQDN(zone))
+	records, err := p.getDNSEntries(ctx, p.unFQDN(zone))
 	if err != nil {
 		return nil, err
 	}
