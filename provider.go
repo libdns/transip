@@ -48,8 +48,6 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 			return nil, err
 		}
 		
-		//newRecord.TTL = time.Duration(newRecord.TTL) * time.Second
-		
 		appendedRecords = append(appendedRecords, newRecord)
 	}
 
