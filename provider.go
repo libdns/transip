@@ -2,12 +2,18 @@ package transip
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/libdns/libdns"
 	transipdomain "github.com/transip/gotransip/v6/domain"
 )
+
+// unFQDN trims any trailing "." from fqdn. TransIP's API does not use FQDNs.
+func (p *Provider) unFQDN(fqdn string) string {
+	return strings.TrimSuffix(fqdn, ".")
+}
 
 // Provider implements the libdns interfaces for Route53
 type Provider struct {
@@ -19,7 +25,7 @@ type Provider struct {
 
 // GetRecords lists all the records in the zone.
 func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
-	records, err := p.getDNSEntries(ctx, zone)
+	records, err := p.getDNSEntries(ctx, p.unFQDN(zone))
 	if err != nil {
 		return nil, err
 	}
@@ -32,11 +38,16 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 	var appendedRecords []libdns.Record
 
 	for _, record := range records {
-		newRecord, err := p.addDNSEntry(ctx, zone, record)
+
+		if record.TTL < time.Duration(300)*time.Second {
+			record.TTL = time.Duration(300) * time.Second
+		}
+
+		newRecord, err := p.addDNSEntry(ctx, p.unFQDN(zone), record)
 		if err != nil {
 			return nil, err
 		}
-		newRecord.TTL = time.Duration(newRecord.TTL) * time.Second
+		
 		appendedRecords = append(appendedRecords, newRecord)
 	}
 
@@ -48,7 +59,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 	var deletedRecords []libdns.Record
 
 	for _, record := range records {
-		deletedRecord, err := p.removeDNSEntry(ctx, zone, record)
+		deletedRecord, err := p.removeDNSEntry(ctx, p.unFQDN(zone), record)
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +76,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 	var setRecords []libdns.Record
 
 	for _, record := range records {
-		setRecord, err := p.updateDNSEntry(ctx, zone, record)
+		setRecord, err := p.updateDNSEntry(ctx, p.unFQDN(zone), record)
 		if err != nil {
 			return nil, err
 		}
