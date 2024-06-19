@@ -28,12 +28,15 @@ func (p *Provider) getDNSEntries(ctx context.Context, domain string) ([]libdns.R
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	p.setupRepository()
-
+	err := p.setupRepository()
+	if err != nil {
+		return nil, err
+	}
+	
 	var records []libdns.Record
 	var dnsEntries []transipdomain.DNSEntry
 
-	dnsEntries, err := p.repository.GetDNSEntries(domain)
+	dnsEntries, err = p.repository.GetDNSEntries(domain)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +58,10 @@ func (p *Provider) addDNSEntry(ctx context.Context, domain string, record libdns
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	p.setupRepository()
+	err := p.setupRepository()
+	if err != nil {
+		return libdns.Record{}, err
+	}
 
 	entry := transipdomain.DNSEntry{
 		Name:    record.Name,
@@ -64,9 +70,9 @@ func (p *Provider) addDNSEntry(ctx context.Context, domain string, record libdns
 		Expire:  int(record.TTL.Seconds()),
 	}
 
-	err := p.repository.AddDNSEntry(domain, entry)
+	err = p.repository.AddDNSEntry(domain, entry)
 	if err != nil {
-		return record, err
+		return libdns.Record{}, err
 	}
 
 	return record, nil
@@ -76,7 +82,10 @@ func (p *Provider) removeDNSEntry(ctx context.Context, domain string, record lib
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	p.setupRepository()
+	err := p.setupRepository()
+	if err != nil {
+		return libdns.Record{}, err
+	}
 
 	entry := transipdomain.DNSEntry{
 		Name:    record.Name,
@@ -85,9 +94,9 @@ func (p *Provider) removeDNSEntry(ctx context.Context, domain string, record lib
 		Expire:  int(record.TTL.Seconds()),
 	}
 
-	err := p.repository.RemoveDNSEntry(domain, entry)
+	err = p.repository.RemoveDNSEntry(domain, entry)
 	if err != nil {
-		return record, err
+		return libdns.Record{}, err
 	}
 
 	return record, nil
@@ -97,7 +106,10 @@ func (p *Provider) updateDNSEntry(ctx context.Context, domain string, record lib
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	p.setupRepository()
+	err := p.setupRepository()
+	if err != nil {
+		return libdns.Record{}, err
+	}
 
 	entry := transipdomain.DNSEntry{
 		Name:    record.Name,
@@ -106,9 +118,9 @@ func (p *Provider) updateDNSEntry(ctx context.Context, domain string, record lib
 		Expire:  int(record.TTL.Seconds()),
 	}
 
-	err := p.repository.UpdateDNSEntry(domain, entry)
+	err = p.repository.UpdateDNSEntry(domain, entry)
 	if err != nil {
-		return record, err
+		return libdns.Record{}, err
 	}
 
 	return record, nil
