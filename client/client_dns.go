@@ -1,0 +1,89 @@
+package client
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"time"
+
+	"github.com/libdns/libdns"
+)
+
+type DNSEntries struct {
+	Entries []*DNSRecord `json:"dnsEntries"`
+}
+
+type DNSRecord struct {
+	Type    string `json:"type"`
+	Name    string `json:"name"`
+	Content string `json:"content"`
+	Expire  int    `json:"expire"`
+}
+
+func MarshallRRRecord(data *DNSRecord, zone string) *libdns.RR {
+	return &libdns.RR{
+		Name: libdns.RelativeName(data.Name, zone),
+		Type: data.Type,
+		Data: data.Content,
+		TTL:  time.Duration(data.Expire) * time.Second,
+	}
+}
+
+func MarshallDNSRecords(data *libdns.RR, zone string) *DNSRecord {
+	var record = &DNSRecord{
+		Type:    data.Type,
+		Content: data.Data,
+		Name:    libdns.RelativeName(data.Name, zone),
+	}
+
+	switch data.TTL.Seconds() {
+	case 60, 300, 3600, 14400, 28800, 86400:
+		record.Expire = int(data.TTL.Seconds())
+	default:
+
+		record.Expire = 3600
+
+	}
+
+	return record
+}
+
+func (c *client) SetDNSList(ctx context.Context, domain string, records []*libdns.RR) error {
+
+	var data = &DNSEntries{
+		Entries: make([]*DNSRecord, len(records)),
+	}
+
+	for i, c := 0, len(data.Entries); i < c; i++ {
+		data.Entries[i] = MarshallDNSRecords(records[i], domain)
+	}
+
+	var buf = new(bytes.Buffer)
+
+	if err := json.NewEncoder(buf).Encode(data); err != nil {
+		return err
+	}
+
+	if err := c.fetch(ctx, c.toDnsPath(domain), http.MethodPut, buf, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *client) GetDNSList(ctx context.Context, domain string) ([]libdns.Record, error) {
+	var data DNSEntries
+
+	if err := c.fetch(ctx, c.toDnsPath(domain), http.MethodGet, nil, &data); err != nil {
+		return nil, err
+	}
+
+	var records = make([]libdns.Record, len(data.Entries))
+
+	for i, c := 0, len(data.Entries); i < c; i++ {
+		records[i] = MarshallRRRecord(data.Entries[i], domain)
+	}
+
+	return records, nil
+}

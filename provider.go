@@ -2,95 +2,108 @@ package transip
 
 import (
 	"context"
-	"strings"
+	"io"
+	"os"
+	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/libdns/libdns"
-	transipdomain "github.com/transip/gotransip/v6/domain"
+	"github.com/libdns/transip/client"
+	"github.com/pbergman/provider"
 )
 
-// unFQDN trims any trailing "." from fqdn. TransIP's API does not use FQDNs.
-func (p *Provider) unFQDN(fqdn string) string {
-	return strings.TrimSuffix(fqdn, ".")
+type Client interface {
+	provider.Client
+	provider.ZoneAwareClient
 }
 
-// Provider implements the libdns interfaces for Route53
 type Provider struct {
-	AccountName    string `json:"account_name"`
-	PrivateKeyPath string `json:"private_key_path"`
-	repository     *transipdomain.Repository
-	mutex          sync.Mutex
+	AuthLogin          string                `json:"login"`
+	AuthReadOnly       bool                  `json:"read_only"`
+	AuthNotGlobalKey   bool                  `json:"not_global_key"`
+	AuthExpirationTime client.ExpirationTime `json:"expiration_time"`
+	PrivateKey         string                `json:"private_key"`
+	Debug              bool                  `json:"debug"`
+	DebugOut           io.Writer             `json:"-"`
+	BaseUri            *ApiBaseUri           `json:"base_uri"`
+	TokenStorage       string                `json:"token_storage"`
+
+	client Client
+	mutex  sync.RWMutex
 }
 
-// GetRecords lists all the records in the zone.
+func (p *Provider) getClient() Client {
+	if nil == p.client {
+
+		if nil == p.BaseUri {
+			p.BaseUri = DefaultApiBaseUri()
+		}
+
+		if nil == p.DebugOut {
+			p.DebugOut = os.Stdout
+		}
+
+		var storage client.Storage
+
+		if p.TokenStorage == "memory" {
+			storage = client.NewTokenMemoryStorage()
+
+			if "" == p.AuthExpirationTime {
+				p.AuthExpirationTime = client.ExpirationTime1Hour
+			}
+		} else {
+
+			var root = p.TokenStorage
+
+			if root == "" {
+				root = filepath.Join(os.TempDir(), "transip")
+			}
+
+			var err error
+
+			storage, err = client.NewTokenFileStorage(root)
+
+			if err != nil {
+				storage = client.NewTokenMemoryStorage()
+			}
+		}
+
+		if "" == p.AuthExpirationTime {
+			p.AuthExpirationTime = client.ExpirationTime1Day
+		}
+
+		p.client = client.NewClient(p, storage)
+	}
+
+	return p.client
+}
+
 func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
-	records, err := p.getDNSEntries(ctx, p.unFQDN(zone))
-	if err != nil {
-		return nil, err
-	}
-
-	return records, nil
+	return provider.GetRecords(ctx, &p.mutex, p.getClient(), zone)
 }
 
-// AppendRecords adds records to the zone. It returns the records that were added.
-func (p *Provider) AppendRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	var appendedRecords []libdns.Record
-
-	for _, record := range records {
-
-		if record.TTL < time.Duration(300)*time.Second {
-			record.TTL = time.Duration(300) * time.Second
-		}
-
-		newRecord, err := p.addDNSEntry(ctx, p.unFQDN(zone), record)
-		if err != nil {
-			return nil, err
-		}
-		
-		appendedRecords = append(appendedRecords, newRecord)
-	}
-
-	return appendedRecords, nil
+func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
+	return provider.AppendRecords(ctx, &p.mutex, p.getClient(), zone, recs)
 }
 
-// DeleteRecords deletes the records from the zone.
-func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	var deletedRecords []libdns.Record
-
-	for _, record := range records {
-		deletedRecord, err := p.removeDNSEntry(ctx, p.unFQDN(zone), record)
-		if err != nil {
-			return nil, err
-		}
-		deletedRecord.TTL = time.Duration(deletedRecord.TTL) * time.Second
-		deletedRecords = append(deletedRecords, deletedRecord)
-	}
-
-	return deletedRecords, nil
+func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
+	return provider.SetRecords(ctx, &p.mutex, p.getClient(), zone, recs)
 }
 
-// SetRecords sets the records in the zone, either by updating existing records
-// or creating new ones. It returns the updated records.
-func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	var setRecords []libdns.Record
+func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
+	return provider.DeleteRecords(ctx, &p.mutex, p.getClient(), zone, recs)
+}
 
-	for _, record := range records {
-		setRecord, err := p.updateDNSEntry(ctx, p.unFQDN(zone), record)
-		if err != nil {
-			return nil, err
-		}
-		setRecord.TTL = time.Duration(setRecord.TTL) * time.Second
-		setRecords = append(setRecords, setRecord)
-	}
-
-	return setRecords, nil
+func (p *Provider) ListZones(ctx context.Context) ([]libdns.Zone, error) {
+	return provider.ListZones(ctx, &p.mutex, p.getClient())
 }
 
 // Interface guards
 var (
+	_ client.Config         = (*Provider)(nil)
 	_ libdns.RecordGetter   = (*Provider)(nil)
 	_ libdns.RecordAppender = (*Provider)(nil)
 	_ libdns.RecordSetter   = (*Provider)(nil)
 	_ libdns.RecordDeleter  = (*Provider)(nil)
+	_ libdns.ZoneLister     = (*Provider)(nil)
 )
