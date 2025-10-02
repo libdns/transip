@@ -48,7 +48,7 @@ func (p *Provider) GetPrivateKey() (*rsa.PrivateKey, error) {
 	var block *pem.Block
 
 	if false == bytes.HasPrefix([]byte(p.PrivateKey), []byte("-----BEGIN PRIVATE KEY-----")) {
-		out, err := os.ReadFile("private.key")
+		out, err := os.ReadFile(p.PrivateKey)
 
 		if err != nil {
 			return nil, err

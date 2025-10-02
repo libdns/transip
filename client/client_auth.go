@@ -26,6 +26,10 @@ func (c *client) Authorize(ctx context.Context, config Config) (string, error) {
 
 	request, err := c.makeAuthorizeRequest(ctx, config)
 
+	if err != nil {
+		return "", err
+	}
+
 	resp, err := c.client.Do(request)
 
 	if err != nil {
