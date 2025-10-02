@@ -4,3 +4,5 @@ github.com/pbergman/provider v0.0.0-20251002105600-e4ab04a7c4df h1:IGewuGiTQaaUA
 github.com/pbergman/provider v0.0.0-20251002105600-e4ab04a7c4df/go.mod h1:g1TbkwPsOBLcdsVRBNrm+nUq5LsA9rn77rjUAVEMXw0=
 github.com/pbergman/provider v0.0.0-20251002122936-4dc0965ca01d h1:Ln55XbSNCaQUAR8xArFrY45sY7h7fjcQIU+MsfeMhgk=
 github.com/pbergman/provider v0.0.0-20251002122936-4dc0965ca01d/go.mod h1:g1TbkwPsOBLcdsVRBNrm+nUq5LsA9rn77rjUAVEMXw0=
+github.com/pbergman/provider v0.0.0-20251002134308-4e7afbd54dd7 h1:iGK9Kol5TjnkUpk2htCq9lA1Efd9YNz8cSnoys2uNa4=
+github.com/pbergman/provider v0.0.0-20251002134308-4e7afbd54dd7/go.mod h1:g1TbkwPsOBLcdsVRBNrm+nUq5LsA9rn77rjUAVEMXw0=
