@@ -2,3 +2,5 @@ github.com/libdns/libdns v1.1.1 h1:wPrHrXILoSHKWJKGd0EiAVmiJbFShguILTg9leS/P/U=
 github.com/libdns/libdns v1.1.1/go.mod h1:4Bj9+5CQiNMVGf87wjX4CY3HQJypUHRuLvlsfsZqLWQ=
 github.com/pbergman/provider v0.0.0-20251002105600-e4ab04a7c4df h1:IGewuGiTQaaUADuzKoUuX3ThzqOslFLgRz7NvsR90BY=
 github.com/pbergman/provider v0.0.0-20251002105600-e4ab04a7c4df/go.mod h1:g1TbkwPsOBLcdsVRBNrm+nUq5LsA9rn77rjUAVEMXw0=
+github.com/pbergman/provider v0.0.0-20251002122936-4dc0965ca01d h1:Ln55XbSNCaQUAR8xArFrY45sY7h7fjcQIU+MsfeMhgk=
+github.com/pbergman/provider v0.0.0-20251002122936-4dc0965ca01d/go.mod h1:g1TbkwPsOBLcdsVRBNrm+nUq5LsA9rn77rjUAVEMXw0=
