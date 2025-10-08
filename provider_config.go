@@ -89,3 +89,7 @@ func (p *Provider) StorageKey() string {
 
 	return hex.EncodeToString(hasher.Sum(nil))
 }
+
+func (p *Provider) GetDebugLevel() client.DebugLevel {
+	return p.DebugLevel
+}

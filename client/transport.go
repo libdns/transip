@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httputil"
+	"time"
 )
 
 type transport struct {
@@ -48,6 +49,12 @@ func (t *transport) getToken(ctx context.Context) (Token, error) {
 
 func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
+	var now time.Time
+
+	if t.config.GetDebugLevel() == DebugLevelNormal {
+		now = time.Now()
+	}
+
 	if ContextValue(req.Context(), "authorize", true) {
 		jwt, err := t.getToken(req.Context())
 
@@ -67,14 +74,27 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	var writer = t.config.GetDebug()
 
-	if writer != nil {
+	if writer != nil && t.config.GetDebugLevel() > DebugLevelNormal {
 		dump(req, httputil.DumpRequest, "c", writer)
 	}
 
 	response, err := t.RoundTripper.RoundTrip(req)
 
 	if writer != nil && nil != response {
-		dump(response, httputil.DumpResponse, "s", writer)
+
+		if t.config.GetDebugLevel() > DebugLevelNormal {
+			dump(response, httputil.DumpResponse, "s", writer)
+		} else {
+
+			var x = response.Request
+			var u = x.RequestURI
+
+			if u == "" {
+				u = x.URL.RequestURI()
+			}
+
+			_, _ = fmt.Fprintf(writer, "[%d] %s \"%s HTTP/%d.%d\" %d (%s)\r\n", now.UnixMilli(), req.Method, u, req.ProtoMajor, req.ProtoMinor, response.StatusCode, time.Now().Sub(now).Round(time.Millisecond))
+		}
 	}
 
 	// perhaps the token expired of revoked? let`s try once more

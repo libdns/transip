@@ -11,8 +11,10 @@ type Domain struct {
 	Name string `json:"name"`
 }
 
-func (d *Domain) String() string {
-	return d.Name
+type DomainName string
+
+func (d DomainName) Name() string {
+	return string(d)
 }
 
 func (c *client) Domains(ctx context.Context) ([]provider.Domain, error) {
@@ -29,7 +31,7 @@ func (c *client) Domains(ctx context.Context) ([]provider.Domain, error) {
 	var domains = make([]provider.Domain, len(data.Domains))
 
 	for i, domain := range data.Domains {
-		domains[i] = domain
+		domains[i] = DomainName(domain.Name)
 	}
 
 	return domains, nil

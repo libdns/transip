@@ -11,6 +11,8 @@ import (
 
 type ExpirationTime string
 
+type DebugLevel uint8
+
 const (
 	ExpirationTime1Hour  ExpirationTime = "1 hour"
 	ExpirationTime2Hour  ExpirationTime = "120 minutes"
@@ -21,15 +23,20 @@ const (
 	ExpirationTime4Week  ExpirationTime = "4 weeks"
 )
 
+const (
+	DebugLevelNormal DebugLevel = iota
+	DebugLevelDebug
+)
+
 type Config interface {
 	Login() string
 	ReadOnly() bool
 	GlobalKey() bool
-
 	StorageKey() string
 	GetBaseUri() *url.URL
 	GetPrivateKey() (*rsa.PrivateKey, error)
 	GetDebug() io.Writer
+	GetDebugLevel() DebugLevel
 }
 
 type ConfigLabel interface {

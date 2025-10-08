@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/libdns/libdns"
+	"github.com/pbergman/provider"
 )
 
 type DNSEntries struct {
@@ -49,27 +50,41 @@ func MarshallDNSRecords(data *libdns.RR, zone string) *DNSRecord {
 	return record
 }
 
-func (c *client) SetDNSList(ctx context.Context, domain string, records []*libdns.RR) error {
+func (c *client) SetDNSList(ctx context.Context, domain string, change provider.ChangeList) ([]libdns.Record, error) {
 
-	var data = &DNSEntries{
-		Entries: make([]*DNSRecord, len(records)),
+	switch c.control {
+	case FullZoneControl:
+
+		var data = &DNSEntries{
+			Entries: make([]*DNSRecord, 0),
+		}
+
+		for record := range change.Iterate(provider.NoChange | provider.Create) {
+			data.Entries = append(data.Entries, MarshallDNSRecords(record, domain))
+		}
+
+		var buf = new(bytes.Buffer)
+
+		if err := json.NewEncoder(buf).Encode(data); err != nil {
+			return nil, err
+		}
+
+		if err := c.fetch(ctx, c.toDnsPath(domain), http.MethodPut, buf, nil); err != nil {
+			return nil, err
+		}
+
+	default:
+
+		if err := c.mutate(ctx, domain, change, provider.Delete); err != nil {
+			return nil, err
+		}
+
+		if err := c.mutate(ctx, domain, change, provider.Create); err != nil {
+			return nil, err
+		}
 	}
 
-	for i, c := 0, len(data.Entries); i < c; i++ {
-		data.Entries[i] = MarshallDNSRecords(records[i], domain)
-	}
-
-	var buf = new(bytes.Buffer)
-
-	if err := json.NewEncoder(buf).Encode(data); err != nil {
-		return err
-	}
-
-	if err := c.fetch(ctx, c.toDnsPath(domain), http.MethodPut, buf, nil); err != nil {
-		return err
-	}
-
-	return nil
+	return nil, nil
 }
 
 func (c *client) GetDNSList(ctx context.Context, domain string) ([]libdns.Record, error) {

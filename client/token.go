@@ -44,9 +44,26 @@ func (t *token) IsExpired() bool {
 	return time.Unix(t.payload.Expires, 0).Before(time.Now())
 }
 
+func (t *token) ReadOnly() bool {
+	if nil == t.payload {
+		return true
+	}
+	return t.payload.ReadOnly
+}
+
+func (t *token) GlobalKey() bool {
+	if nil == t.payload {
+		return true
+	}
+	return t.payload.GlobalKey
+}
+
 type Token interface {
 	String() string
 	IsExpired() bool
+	ReadOnly() bool
+	GlobalKey() bool
+
 	gob.GobDecoder
 }
 

@@ -3,13 +3,44 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/pbergman/provider"
+)
+
+type ControleMode uint8
+
+func (c *ControleMode) UnmarshalJSON(b []byte) error {
+	var x int
+
+	if err := json.Unmarshal(b, &x); err == nil {
+		*c = ControleMode(x)
+		return nil
+	}
+
+	var z string
+
+	if err := json.Unmarshal(b, &z); err != nil {
+		return errors.New("invalid controle mode")
+	}
+
+	if regexp.MustCompile(`full(_|\s)?zone((_|\s)?control)?`).Match([]byte(z)) {
+		*c = FullZoneControl
+	}
+
+	return nil
+}
+
+const (
+	RecordLevelControl ControleMode = iota
+	FullZoneControl
 )
 
 type ApiClient interface {
@@ -33,8 +64,10 @@ type Link struct {
 	Link string `json:"link"`
 }
 
-func NewClient(config Config, storage Storage) ApiClient {
+func NewClient(config Config, storage Storage, mode ControleMode) ApiClient {
 	object := new(client)
+	object.control = mode
+	object.buf = NewBufPool()
 	object.client = &http.Client{
 		Transport: &transport{
 			RoundTripper: http.DefaultTransport,
@@ -56,7 +89,9 @@ func ContextValue[T any](ctx context.Context, name string, defaultOnNil T) T {
 }
 
 type client struct {
-	client *http.Client
+	client  *http.Client
+	buf     *sync.Pool
+	control ControleMode
 }
 
 func (a *client) toDnsPath(domain string) string {
@@ -103,3 +138,8 @@ func (a *client) fetch(ctx context.Context, path string, method string, body io.
 
 	return nil
 }
+
+var (
+	_ provider.Client          = (*client)(nil)
+	_ provider.ZoneAwareClient = (*client)(nil)
+)
