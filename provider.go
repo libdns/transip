@@ -36,12 +36,8 @@ type Provider struct {
 	// the private key.
 	PrivateKey string `json:"private_key"`
 
-	// Debug set to true to dump the API requests.
-	Debug bool `json:"debug"`
 	// DebugLevel sets the verbosity for logging API requests and responses.
-	// 0 (default) prints only the request line.
-	// 1 prints the full request and response.
-	DebugLevel client.DebugLevel `json:"debug_level"`
+	DebugLevel provider.OutputLevel `json:"debug_level"`
 	// DebugOut defines the output destination for debug logs.
 	// Defaults to standard output (STDOUT).
 	DebugOut io.Writer `json:"-"`

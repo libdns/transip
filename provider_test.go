@@ -3,9 +3,11 @@ package transip
 import (
 	"encoding/json"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/libdns/transip/client"
+	"github.com/pbergman/provider"
 	"github.com/pbergman/provider/test"
 )
 
@@ -27,18 +29,20 @@ func TestProvider_Unmarshall(t *testing.T) {
 
 func TestProvider(t *testing.T) {
 
-	var provider = &Provider{
+	var handler = &Provider{
 		AuthLogin:  os.Getenv("LOGIN"),
 		PrivateKey: os.Getenv("KEY"),
 	}
 
 	if _, ok := os.LookupEnv("DEBUG"); ok {
-		provider.Debug = true
+		if x, ok := strconv.Atoi(os.Getenv("DEBUG")); ok == nil {
+			handler.DebugLevel = provider.OutputLevel(x)
+		}
 	}
 
 	if _, ok := os.LookupEnv("FULL_ZONE"); ok {
-		provider.ClientControl = client.FullZoneControl
+		handler.ClientControl = client.FullZoneControl
 	}
 
-	test.RunProviderTests(t, provider, test.TestAll)
+	test.RunProviderTests(t, handler, test.TestAll)
 }

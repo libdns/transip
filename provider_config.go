@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"strconv"
@@ -35,13 +34,6 @@ func (p *Provider) GetBaseUri() *url.URL {
 	}
 
 	return (*url.URL)(p.BaseUri)
-}
-
-func (p *Provider) GetDebug() io.Writer {
-	if p.Debug && p.DebugOut != nil {
-		return p.DebugOut
-	}
-	return nil
 }
 
 func (p *Provider) GetPrivateKey() (*rsa.PrivateKey, error) {
@@ -88,8 +80,4 @@ func (p *Provider) StorageKey() string {
 	}
 
 	return hex.EncodeToString(hasher.Sum(nil))
-}
-
-func (p *Provider) GetDebugLevel() client.DebugLevel {
-	return p.DebugLevel
 }

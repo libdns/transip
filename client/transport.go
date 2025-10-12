@@ -1,14 +1,9 @@
 package client
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
-	"net/http/httputil"
-	"time"
 )
 
 type transport struct {
@@ -49,12 +44,6 @@ func (t *transport) getToken(ctx context.Context) (Token, error) {
 
 func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
-	var now time.Time
-
-	if t.config.GetDebugLevel() == DebugLevelNormal {
-		now = time.Now()
-	}
-
 	if ContextValue(req.Context(), "authorize", true) {
 		jwt, err := t.getToken(req.Context())
 
@@ -72,30 +61,7 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Set("content-type", "application/json")
 	req.Header.Set("accept", "application/json")
 
-	var writer = t.config.GetDebug()
-
-	if writer != nil && t.config.GetDebugLevel() > DebugLevelNormal {
-		dump(req, httputil.DumpRequest, "c", writer)
-	}
-
 	response, err := t.RoundTripper.RoundTrip(req)
-
-	if writer != nil && nil != response {
-
-		if t.config.GetDebugLevel() > DebugLevelNormal {
-			dump(response, httputil.DumpResponse, "s", writer)
-		} else {
-
-			var x = response.Request
-			var u = x.RequestURI
-
-			if u == "" {
-				u = x.URL.RequestURI()
-			}
-
-			_, _ = fmt.Fprintf(writer, "[%d] %s \"%s HTTP/%d.%d\" %d (%s)\r\n", now.UnixMilli(), req.Method, u, req.ProtoMajor, req.ProtoMinor, response.StatusCode, time.Now().Sub(now).Round(time.Millisecond))
-		}
-	}
 
 	// perhaps the token expired of revoked? let`s try once more
 	if nil != response && response.StatusCode == http.StatusUnauthorized && false == ContextValue(req.Context(), "token_refresh_force", false) {
@@ -103,13 +69,4 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	return response, err
-}
-
-func dump[T *http.Request | *http.Response](x T, d func(T, bool) ([]byte, error), p string, o io.Writer) {
-	if out, err := d(x, true); err == nil {
-		scanner := bufio.NewScanner(bytes.NewReader(out))
-		for scanner.Scan() {
-			_, _ = fmt.Fprintf(o, "[%s] %s\n", p, scanner.Text())
-		}
-	}
 }

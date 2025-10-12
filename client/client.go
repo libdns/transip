@@ -65,17 +65,30 @@ type Link struct {
 }
 
 func NewClient(config Config, storage Storage, mode ControleMode) ApiClient {
-	object := new(client)
-	object.control = mode
-	object.buf = NewBufPool()
-	object.client = &http.Client{
-		Transport: &transport{
-			RoundTripper: http.DefaultTransport,
-			refresh:      object.Authorize,
-			config:       config,
-			storage:      storage,
-		},
+
+	var object = &client{
+		control: mode,
+		buf:     NewBufPool(),
 	}
+
+	var transporter http.RoundTripper = &transport{
+		RoundTripper: http.DefaultTransport,
+		refresh:      object.Authorize,
+		config:       config,
+		storage:      storage,
+	}
+
+	if v, ok := config.(provider.DebugConfig); ok {
+		transporter = &provider.DebugTransport{
+			RoundTripper: transporter,
+			Config:       v,
+		}
+	}
+
+	object.client = &http.Client{
+		Transport: transporter,
+	}
+
 	return object
 }
 

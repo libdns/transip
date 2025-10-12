@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -63,13 +62,15 @@ func (c *client) SetDNSList(ctx context.Context, domain string, change provider.
 			data.Entries = append(data.Entries, MarshallDNSRecords(record, domain))
 		}
 
-		var buf = new(bytes.Buffer)
+		var buffer = c.buf.Get().(*buf)
 
-		if err := json.NewEncoder(buf).Encode(data); err != nil {
+		defer buffer.Close()
+
+		if err := json.NewEncoder(buffer).Encode(data); err != nil {
 			return nil, err
 		}
 
-		if err := c.fetch(ctx, c.toDnsPath(domain), http.MethodPut, buf, nil); err != nil {
+		if err := c.fetch(ctx, c.toDnsPath(domain), http.MethodPut, buffer, nil); err != nil {
 			return nil, err
 		}
 

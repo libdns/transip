@@ -4,9 +4,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/hex"
-	"io"
 	fallback "math/rand/v2"
 	"net/url"
+
+	"github.com/pbergman/provider"
 )
 
 type ExpirationTime string
@@ -35,8 +36,7 @@ type Config interface {
 	StorageKey() string
 	GetBaseUri() *url.URL
 	GetPrivateKey() (*rsa.PrivateKey, error)
-	GetDebug() io.Writer
-	GetDebugLevel() DebugLevel
+	provider.DebugConfig
 }
 
 type ConfigLabel interface {
