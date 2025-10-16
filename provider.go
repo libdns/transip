@@ -2,95 +2,149 @@ package transip
 
 import (
 	"context"
-	"strings"
+	"io"
+	"os"
+	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/libdns/libdns"
-	transipdomain "github.com/transip/gotransip/v6/domain"
+	"github.com/libdns/transip/client"
+	"github.com/pbergman/provider"
 )
 
-// unFQDN trims any trailing "." from fqdn. TransIP's API does not use FQDNs.
-func (p *Provider) unFQDN(fqdn string) string {
-	return strings.TrimSuffix(fqdn, ".")
+type Client interface {
+	provider.Client
+	provider.ZoneAwareClient
 }
 
-// Provider implements the libdns interfaces for Route53
 type Provider struct {
-	AccountName    string `json:"account_name"`
-	PrivateKeyPath string `json:"private_key_path"`
-	repository     *transipdomain.Repository
-	mutex          sync.Mutex
+	// AuthLogin the login used for authentication
+	AuthLogin string `json:"login"`
+	// AuthReadOnly set to true to create readonly keys
+	AuthReadOnly bool `json:"read_only"`
+	// AuthNotGlobalKey can be set to true to generate keys that are
+	// restricted to clients with IP addresses included in the whitelist.
+	AuthNotGlobalKey bool `json:"not_global_key"`
+	// AuthExpirationTime specifies the time-to-live for an authentication token.
+	AuthExpirationTime client.ExpirationTime `json:"expiration_time"`
+
+	// PrivateKey can be generated here:
+	// https://www.transip.nl/cp/account/api
+	//
+	// It is used for authentication and can be provided either as a
+	// string containing the key or as a filepath to a file containing
+	// the private key.
+	PrivateKey string `json:"private_key"`
+
+	// DebugLevel sets the verbosity for logging API requests and responses.
+	DebugLevel provider.OutputLevel `json:"debug_level"`
+	// DebugOut defines the output destination for debug logs.
+	// Defaults to standard output (STDOUT).
+	DebugOut io.Writer `json:"-"`
+
+	// BaseURI is the base URI used for API calls.
+	// Default: https://api.transip.nl/v6/
+	BaseUri *ApiBaseUri `json:"base_uri"`
+
+	// TokenStorage specifies where tokens are stored and can be reused
+	// until they expire. It can be set to:
+	// - "memory" for in-memory storage,
+	// - a file path for storing keys on disk
+	// - empty, in which case keys will be stored in a "transip" directory
+	//   in the user's temp folder.
+	TokenStorage string `json:"token_storage"`
+
+	// ClientControl has two modes:
+	// - RecordLevelControl (default): updates records individually.
+	// - FullZoneControl: replaces the entire zone in a single call.
+	//   While this is much faster, it can encounter race conditions if
+	//   another program modifies the zone simultaneously, as updates
+	//   may be overwritten.
+	ClientControl client.ControleMode `json:"client_control_mode"`
+	client        Client
+
+	pLock sync.RWMutex
+	cLock sync.Mutex
 }
 
-// GetRecords lists all the records in the zone.
+func (p *Provider) getClient() Client {
+	p.cLock.Lock()
+	defer p.cLock.Unlock()
+
+	if nil == p.client {
+
+		if nil == p.BaseUri {
+			p.BaseUri = DefaultApiBaseUri()
+		}
+
+		if nil == p.DebugOut {
+			p.DebugOut = os.Stdout
+		}
+
+		if p.TokenStorage == "memory" && "" == p.AuthExpirationTime {
+			p.AuthExpirationTime = client.ExpirationTime1Hour
+		}
+
+		if "" == p.AuthExpirationTime {
+			p.AuthExpirationTime = client.ExpirationTime1Day
+		}
+
+		p.client = client.NewClient(p, NewTokenStorage(p.TokenStorage), p.ClientControl)
+	}
+
+	return p.client
+}
+
 func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
-	records, err := p.getDNSEntries(ctx, p.unFQDN(zone))
-	if err != nil {
-		return nil, err
-	}
-
-	return records, nil
+	return provider.GetRecords(ctx, &p.pLock, p.getClient(), zone)
 }
 
-// AppendRecords adds records to the zone. It returns the records that were added.
-func (p *Provider) AppendRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	var appendedRecords []libdns.Record
-
-	for _, record := range records {
-
-		if record.TTL < time.Duration(300)*time.Second {
-			record.TTL = time.Duration(300) * time.Second
-		}
-
-		newRecord, err := p.addDNSEntry(ctx, p.unFQDN(zone), record)
-		if err != nil {
-			return nil, err
-		}
-		
-		appendedRecords = append(appendedRecords, newRecord)
-	}
-
-	return appendedRecords, nil
+func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
+	return provider.AppendRecords(ctx, &p.pLock, p.getClient(), zone, recs)
 }
 
-// DeleteRecords deletes the records from the zone.
-func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	var deletedRecords []libdns.Record
-
-	for _, record := range records {
-		deletedRecord, err := p.removeDNSEntry(ctx, p.unFQDN(zone), record)
-		if err != nil {
-			return nil, err
-		}
-		deletedRecord.TTL = time.Duration(deletedRecord.TTL) * time.Second
-		deletedRecords = append(deletedRecords, deletedRecord)
-	}
-
-	return deletedRecords, nil
+func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
+	return provider.SetRecords(ctx, &p.pLock, p.getClient(), zone, recs)
 }
 
-// SetRecords sets the records in the zone, either by updating existing records
-// or creating new ones. It returns the updated records.
-func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	var setRecords []libdns.Record
+func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
+	return provider.DeleteRecords(ctx, &p.pLock, p.getClient(), zone, recs)
+}
 
-	for _, record := range records {
-		setRecord, err := p.updateDNSEntry(ctx, p.unFQDN(zone), record)
-		if err != nil {
-			return nil, err
+func (p *Provider) ListZones(ctx context.Context) ([]libdns.Zone, error) {
+	return provider.ListZones(ctx, &p.pLock, p.getClient())
+}
+
+func NewTokenStorage(location string) client.Storage {
+
+	var storage client.Storage
+
+	if location == "memory" {
+		storage = client.NewTokenMemoryStorage()
+	} else {
+
+		if location == "" {
+			location = filepath.Join(os.TempDir(), "transip")
 		}
-		setRecord.TTL = time.Duration(setRecord.TTL) * time.Second
-		setRecords = append(setRecords, setRecord)
+
+		var err error
+
+		storage, err = client.NewTokenFileStorage(location)
+
+		if err != nil {
+			storage = client.NewTokenMemoryStorage()
+		}
 	}
 
-	return setRecords, nil
+	return storage
 }
 
 // Interface guards
 var (
+	_ client.Config         = (*Provider)(nil)
 	_ libdns.RecordGetter   = (*Provider)(nil)
 	_ libdns.RecordAppender = (*Provider)(nil)
 	_ libdns.RecordSetter   = (*Provider)(nil)
 	_ libdns.RecordDeleter  = (*Provider)(nil)
+	_ libdns.ZoneLister     = (*Provider)(nil)
 )

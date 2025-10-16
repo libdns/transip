@@ -1,8 +1,8 @@
 module github.com/libdns/transip
 
-go 1.14
+go 1.24.4
 
 require (
-	github.com/libdns/libdns v0.0.0-20200501023120-186724ffc821
-	github.com/transip/gotransip/v6 v6.6.1
+	github.com/libdns/libdns v1.1.1
+	github.com/pbergman/provider v0.0.0-20251011120131-748ccf3d6dd7
 )
