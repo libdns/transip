@@ -51,6 +51,10 @@ func MarshallDNSRecords(data *libdns.RR, zone string) *DNSRecord {
 
 func (c *client) SetDNSList(ctx context.Context, domain string, change provider.ChangeList) ([]libdns.Record, error) {
 
+	if false == change.Has(provider.Delete|provider.Create) {
+		return nil, nil
+	}
+
 	switch c.control {
 	case FullZoneControl:
 
