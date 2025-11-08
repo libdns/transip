@@ -68,6 +68,10 @@ func (p *Provider) GetPrivateKey() (*rsa.PrivateKey, error) {
 	return nil, fmt.Errorf("failed to parse private key")
 }
 
+func (p *Provider) setTokenStorage(x client.Storage) {
+	p.tokenStorage = x
+}
+
 func (p *Provider) ExpirationTime() client.ExpirationTime {
 	return p.AuthExpirationTime
 }

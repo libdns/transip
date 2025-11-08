@@ -1,4 +1,4 @@
 github.com/libdns/libdns v1.1.1 h1:wPrHrXILoSHKWJKGd0EiAVmiJbFShguILTg9leS/P/U=
 github.com/libdns/libdns v1.1.1/go.mod h1:4Bj9+5CQiNMVGf87wjX4CY3HQJypUHRuLvlsfsZqLWQ=
-github.com/pbergman/provider v1.0.0 h1:lF5q2vCehgem65zg0sbz6sKHv0O9VM/DG/HXaUy2H5U=
-github.com/pbergman/provider v1.0.0/go.mod h1:g1TbkwPsOBLcdsVRBNrm+nUq5LsA9rn77rjUAVEMXw0=
+github.com/pbergman/provider v1.0.1 h1:gX7bxZPz+SQoBNmoNeHyQETg6pUvJ+Et5gjLE7hXVgM=
+github.com/pbergman/provider v1.0.1/go.mod h1:g1TbkwPsOBLcdsVRBNrm+nUq5LsA9rn77rjUAVEMXw0=

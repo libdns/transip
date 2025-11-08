@@ -53,6 +53,7 @@ type Provider struct {
 	// - empty, in which case keys will be stored in a "transip" directory
 	//   in the user's temp folder.
 	TokenStorage string `json:"token_storage"`
+	tokenStorage client.Storage
 
 	// ClientControl has two modes:
 	// - RecordLevelControl (default): updates records individually.
@@ -89,7 +90,11 @@ func (p *Provider) getClient() Client {
 			p.AuthExpirationTime = client.ExpirationTime1Day
 		}
 
-		p.client = client.NewClient(p, NewTokenStorage(p.TokenStorage), p.ClientControl)
+		if p.tokenStorage == nil {
+			p.tokenStorage = NewTokenStorage(p.TokenStorage)
+		}
+
+		p.client = client.NewClient(p, p.tokenStorage, p.ClientControl)
 	}
 
 	return p.client
@@ -116,7 +121,6 @@ func (p *Provider) ListZones(ctx context.Context) ([]libdns.Zone, error) {
 }
 
 func NewTokenStorage(location string) client.Storage {
-
 	var storage client.Storage
 
 	if location == "memory" {
